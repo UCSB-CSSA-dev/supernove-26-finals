@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { AlertTriangle, Disc3, Music2 } from "lucide-react";
+import { AlertTriangle, Disc3, ExternalLink, HardDriveDownload, Music2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { Player } from "@/hooks/use-player";
 import { thumbnail, type Song } from "@/lib/playlist";
 import { cn } from "cn";
@@ -24,7 +25,7 @@ export function Stage({ player }: { player: Player }) {
         <AnimatePresence initial={false}>
           {song && mp3 ? (
             <Overlay key={`mp3-${song.order}`}>
-              <BackupCard song={song} playing={playing} available={backupAvailable} />
+              <BackupCard song={song} playing={playing} available={backupAvailable} reason={ytError} />
             </Overlay>
           ) : song && ytError ? (
             <Overlay key={`error-${song.order}`}>
@@ -33,7 +34,26 @@ export function Stage({ player }: { player: Player }) {
                   <AlertTriangle className="size-5" />
                   <span>{ytError}</span>
                 </div>
-                <p className="mt-3 text-sm text-muted-foreground">请点击右下角「备用 MP3」· Switch to the backup MP3</p>
+                <div className="mt-5 flex gap-3">
+                  <Button
+                    variant="outline"
+                    className="h-10 rounded-full px-4"
+                    disabled={!song.link}
+                    onClick={() => window.open(song.link, "_blank", "noopener")}
+                  >
+                    <ExternalLink /> 在浏览器打开 · Open on YouTube
+                  </Button>
+                  <Button
+                    className="h-10 rounded-full px-4"
+                    disabled={backupAvailable === false}
+                    onClick={player.backupThisSongOnly}
+                  >
+                    <HardDriveDownload /> 使用备用 MP3 · Use backup MP3
+                  </Button>
+                </div>
+                {backupAvailable === false ? (
+                  <p className="mt-3 text-sm text-muted-foreground">该曲目没有备用 MP3 · No backup file for this song</p>
+                ) : null}
               </Poster>
             </Overlay>
           ) : song && ended ? (
@@ -95,9 +115,22 @@ function Poster({ song, children }: { song: Song; children?: ReactNode }) {
   );
 }
 
-function BackupCard({ song, playing, available }: { song: Song; playing: boolean; available?: boolean }) {
+function BackupCard({
+  song,
+  playing,
+  available,
+  reason,
+}: {
+  song: Song;
+  playing: boolean;
+  available?: boolean;
+  reason: string | null;
+}) {
   return (
     <Poster song={song}>
+      {reason && available !== false ? (
+        <p className="mb-4 text-sm text-muted-foreground">YouTube：{reason} — 正在使用备用 MP3 · Playing backup</p>
+      ) : null}
       {available === false ? (
         <div className="flex items-center gap-3 rounded-full border border-destructive/40 bg-black/60 px-5 py-2 text-destructive">
           <AlertTriangle className="size-5" />

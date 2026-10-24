@@ -53,7 +53,15 @@ export function usePlayer(songs: Song[]) {
 
   const ytHost = useRef<HTMLDivElement>(null);
   const yt = useRef<YT.Player | null>(null);
-  const state = useRef({ index: 0, source: "youtube" as Source, playing: false, started: false, ytReady: false, volume: 80 });
+  const state = useRef({
+    index: 0,
+    source: "youtube" as Source,
+    playing: false,
+    started: false,
+    ytReady: false,
+    volume: 80,
+    autoMp3: false,
+  });
   const hasSongs = songs.length > 0;
 
   const update = useCallback(
@@ -86,6 +94,11 @@ export function usePlayer(songs: Song[]) {
       setIndex(target);
       localStorage.setItem(INDEX_KEY, String(target));
       update({ playing: false, started: false, ended: false });
+      if (state.current.autoMp3) {
+        state.current.autoMp3 = false;
+        state.current.source = "youtube";
+        setSource("youtube");
+      }
       setYtError(song.videoId ? null : "该曲目没有 YouTube 链接 · No YouTube link");
       setTime({ current: song.start, duration: 0 });
 
@@ -262,13 +275,13 @@ export function usePlayer(songs: Song[]) {
     [audio],
   );
 
-  const toggleBackup = useCallback(() => {
+  const switchSource = useCallback((target: Source, onlyThisSong: boolean) => {
     const current = songs[state.current.index];
-    if (!current) return;
+    if (!current || state.current.source === target) return;
     const at = position();
     const resume = state.current.playing;
-    const target: Source = state.current.source === "youtube" ? "mp3" : "youtube";
     state.current.source = target;
+    state.current.autoMp3 = onlyThisSong;
     setSource(target);
     update({ playing: false });
 
@@ -288,6 +301,13 @@ export function usePlayer(songs: Song[]) {
       } else if (resume) player.playVideo();
     }
   }, [audio, position, songs, update]);
+
+  const toggleBackup = useCallback(
+    () => switchSource(state.current.source === "youtube" ? "mp3" : "youtube", false),
+    [switchSource],
+  );
+
+  const backupThisSongOnly = useCallback(() => switchSource("mp3", true), [switchSource]);
 
   return {
     ytHost,
@@ -310,6 +330,7 @@ export function usePlayer(songs: Song[]) {
     jump,
     setVolume,
     toggleBackup,
+    backupThisSongOnly,
   };
 }
 
