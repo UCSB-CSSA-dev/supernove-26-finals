@@ -115,11 +115,17 @@
   animation-delay: -2s;
 }
 
+/* Safari flickers when animating clipped-text backgrounds on inline boxes; inline-block + its own layer fixes it. */
 .sn-title {
+  display: inline-block;
   background: linear-gradient(90deg, oklch(0.88 0.14 85), white, oklch(0.8 0.14 300), oklch(0.88 0.14 85));
   background-size: 300% 100%;
+  -webkit-background-clip: text;
   background-clip: text;
+  -webkit-text-fill-color: transparent;
   color: transparent;
+  transform: translateZ(0);
+  will-change: background-position;
   animation: sn-title 9s linear infinite;
 }
 

@@ -124,7 +124,7 @@ export function RulesDialog() {
         <DialogDescription className="sr-only">Supernova 2026 semifinal rules</DialogDescription>
 
         <div className="relative min-h-[26rem] overflow-hidden px-7 py-6">
-          <AnimatePresence mode="wait" custom={direction} initial={false}>
+          <AnimatePresence mode="wait" custom={direction}>
             <motion.div
               key={page}
               custom={direction}
