@@ -1,4 +1,4 @@
-export type SongKind = "song" | "dance" | "guest" | "chorus" | "blank" | "rules" | "link";
+export type SongKind = "song" | "dance" | "guest" | "chorus" | "blank" | "rules" | "link" | "opening" | "ending";
 
 export type Song = {
   index: number;
@@ -29,6 +29,8 @@ const KIND_BY_PREFIX: Record<string, SongKind> = {
   C: "chorus",
   L: "link",
   V: "link",
+  O: "opening",
+  E: "ending",
 };
 
 export const KIND_NAMES: Record<SongKind, { zh: string; en: string }> = {
@@ -39,6 +41,8 @@ export const KIND_NAMES: Record<SongKind, { zh: string; en: string }> = {
   blank: { zh: "表演", en: "Performance" },
   rules: { zh: "比赛规则", en: "Rules" },
   link: { zh: "互动环节", en: "Interactive" },
+  opening: { zh: "开场", en: "Opening" },
+  ending: { zh: "闭幕", en: "Closing" },
 };
 
 const MEDIA_KINDS = new Set<SongKind>(["song", "dance", "guest", "chorus"]);
@@ -66,11 +70,13 @@ export function parsePlaylist(text: string): Song[] {
     .slice(1);
 
   const songs = rows.flatMap((line) => {
-    const [rawCode, rawSinger, rawTitle, rawLink] = line.split(",").map((part) => part.trim());
-    if (!rawCode || !rawSinger) return [];
+    const [rawCode, name, rawTitle, rawLink] = line.split(",").map((part) => part.trim());
+    if (!rawCode) return [];
     const code = rawCode.toUpperCase();
     const contestant = /^\d+$/.test(code);
     const kind = KIND_BY_PREFIX[code.replace(/\d+$/, "")] ?? "song";
+    const rawSinger = name || (contestant ? "" : KIND_NAMES[kind].zh);
+    if (!rawSinger) return [];
     const label = contestant ? code.padStart(2, "0") : code;
     const link = rawLink ?? "";
     const { videoId, start } = MEDIA_KINDS.has(kind) ? parseYouTube(link) : { videoId: null, start: 0 };

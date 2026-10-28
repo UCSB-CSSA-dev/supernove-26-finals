@@ -1,6 +1,7 @@
 顺序,姓名,歌曲,link,
 B,乐队表演
-R,开场
+O,
+R,规则
 D1,舞蹈-Supernatural
 1,张一鸣,,,
 2,小杜,,,
@@ -23,3 +24,4 @@ V1,观众投票,,https://ucsb-cssa-dev.github.io/Supernova/result
 L2,结尾抽奖,,https://ucsb-cssa-dev.github.io/Supernova/admin/lottery
 V2,公布结果,,https://ucsb-cssa-dev.github.io/Supernova/final-result
 C,大合唱,Beauty and a Beat,https://youtu.be/Ys7-6_t7OEQ?si=PNVkUFAEBv6FPt1o
+E,

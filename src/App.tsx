@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { Backdrop } from "@/components/backdrop";
+import { CeremonyScreen } from "@/components/ceremony-screen";
 import { ControlBar } from "@/components/control-bar";
 import { FullscreenButton } from "@/components/fullscreen-button";
 import { RulesShow } from "@/components/rules-show";
@@ -15,6 +16,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const player = usePlayer(songs);
   const song = player.song;
+  const ceremony = song?.kind === "opening" || song?.kind === "ending";
 
   useEffect(() => {
     loadPlaylist()
@@ -38,9 +40,23 @@ export default function App() {
             />
           ) : null}
         </AnimatePresence>
+        <AnimatePresence>
+          {song && ceremony ? (
+            <motion.div
+              key={song.index}
+              className="absolute inset-0"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <CeremonyScreen variant={song.kind === "opening" ? "opening" : "ending"} />
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
 
-        <header className="flex shrink-0 items-center justify-between gap-6 px-6 pt-3 pb-2">
-          <div className="flex min-w-0 items-center gap-5">
+        <header className="pointer-events-none relative z-10 flex shrink-0 items-center justify-between gap-6 px-6 pt-3 pb-2 [&>*]:pointer-events-auto">
+          <div className={cn("flex min-w-0 items-center gap-5 transition-opacity duration-700", ceremony && "opacity-0")}>
             {/* Only the phoenix + wordmark half of the logo; its black caption is unreadable on the dark theme. */}
             <div className="h-14 shrink-0 overflow-hidden" style={{ aspectRatio: "362 / 193" }}>
               <img
@@ -60,20 +76,20 @@ export default function App() {
           <FullscreenButton />
         </header>
 
-        <main className="flex min-h-0 flex-1 flex-col gap-3 px-6 pb-4">
+        <main className="pointer-events-none relative z-10 flex min-h-0 flex-1 flex-col gap-3 px-6 pb-4 [&>*]:pointer-events-auto">
           {error ? (
             <p className="m-auto max-w-xl text-center text-lg text-destructive">
               无法加载歌单 · Could not load the playlist ({error})
             </p>
           ) : (
             <>
-              <div className="relative flex min-h-0 flex-1 flex-col">
+              <div className={cn("relative flex min-h-0 flex-1 flex-col", ceremony && "pointer-events-none!")}>
                 {/* Stays mounted even when hidden: the YouTube player lives inside it. */}
                 <div className={cn("flex min-h-0 flex-1 flex-col", !player.media && "invisible")}>
                   <Stage player={player} />
                 </div>
                 <AnimatePresence>
-                  {song && !player.media ? (
+                  {song && !player.media && !ceremony ? (
                     <motion.div
                       key={song.index}
                       className="absolute inset-0"
