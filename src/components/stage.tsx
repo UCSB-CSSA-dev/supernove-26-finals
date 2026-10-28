@@ -1,13 +1,14 @@
 import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { AlertTriangle, Disc3, ExternalLink, HardDriveDownload, Music2 } from "lucide-react";
+import { LyricsOverlay } from "@/components/lyrics-overlay";
 import { Button } from "@/components/ui/button";
 import type { Player } from "@/hooks/use-player";
-import { thumbnail, type Song } from "@/lib/playlist";
+import { KIND_NAMES, thumbnail, type Song } from "@/lib/playlist";
 import { cn } from "cn";
 
 export function Stage({ player }: { player: Player }) {
-  const { song, source, started, ended, ytError, ytHost, playing, backupAvailable } = player;
+  const { song, source, started, ended, ytError, ytHost, playing, backupAvailable, lyrics, showLyrics } = player;
   const mp3 = source === "mp3";
 
   return (
@@ -24,11 +25,11 @@ export function Stage({ player }: { player: Player }) {
 
         <AnimatePresence initial={false}>
           {song && mp3 ? (
-            <Overlay key={`mp3-${song.order}`}>
+            <Overlay key={`mp3-${song.index}`}>
               <BackupCard song={song} playing={playing} available={backupAvailable} reason={ytError} />
             </Overlay>
           ) : song && ytError ? (
-            <Overlay key={`error-${song.order}`}>
+            <Overlay key={`error-${song.index}`}>
               <Poster song={song}>
                 <div className="flex items-center gap-3 rounded-full border border-destructive/40 bg-black/60 px-5 py-2 text-destructive">
                   <AlertTriangle className="size-5" />
@@ -57,18 +58,33 @@ export function Stage({ player }: { player: Player }) {
               </Poster>
             </Overlay>
           ) : song && ended ? (
-            <Overlay key={`ended-${song.order}`}>
+            <Overlay key={`ended-${song.index}`}>
               <Poster song={song}>
                 <p className="font-heading text-2xl text-primary">演唱结束 · Performance complete</p>
                 <p className="mt-2 text-sm text-muted-foreground">点击「下一首」继续 · Press Next to continue</p>
               </Poster>
             </Overlay>
           ) : song && !started ? (
-            <Overlay key={`ready-${song.order}`}>
+            <Overlay key={`ready-${song.index}`}>
               <Poster song={song}>
                 <p className="text-sm tracking-[0.35em] text-primary uppercase">Up next · 准备演唱</p>
               </Poster>
             </Overlay>
+          ) : null}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {song && showLyrics && lyrics.length > 0 && started && !ended && (mp3 || !ytError) ? (
+            <motion.div
+              key={`lyrics-${song.index}`}
+              className="pointer-events-none absolute inset-x-0 bottom-0"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.35 }}
+            >
+              <LyricsOverlay lines={lyrics} position={player.position} />
+            </motion.div>
           ) : null}
         </AnimatePresence>
       </div>
@@ -105,10 +121,14 @@ function Poster({ song, children }: { song: Song; children?: ReactNode }) {
           transition={{ type: "spring", stiffness: 200, damping: 16 }}
           className="font-heading text-[clamp(3rem,12cqh,8rem)] leading-none font-bold text-primary drop-shadow-[0_0_30px_oklch(0.84_0.14_85/0.5)] tabular-nums"
         >
-          {String(song.order).padStart(2, "0")}
+          {song.label}
         </motion.p>
-        <h2 className="sn-title mt-4 font-heading text-[clamp(2rem,8cqh,5rem)] leading-tight font-bold">{song.title}</h2>
-        <p className="mt-2 text-[clamp(1.1rem,4cqh,2.5rem)] text-foreground/85">{song.singer}</p>
+        <h2 className="sn-title mt-4 font-heading text-[clamp(2rem,8cqh,5rem)] leading-tight font-bold">
+          {song.title || song.singer}
+        </h2>
+        <p className="mt-2 text-[clamp(1.1rem,4cqh,2.5rem)] text-foreground/85">
+          {song.title ? song.singer : `${KIND_NAMES[song.kind].zh} · ${KIND_NAMES[song.kind].en}`}
+        </p>
         <div className="mt-6 flex flex-col items-center">{children}</div>
       </div>
     </div>

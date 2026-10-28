@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { MotionConfig } from "motion/react";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { Backdrop } from "@/components/backdrop";
 import { ControlBar } from "@/components/control-bar";
 import { FullscreenButton } from "@/components/fullscreen-button";
-import { RulesDialog } from "@/components/rules-dialog";
+import { RulesShow } from "@/components/rules-show";
+import { BlankScreen, LinkScreen } from "@/components/segment-screens";
 import { Stage } from "@/components/stage";
+import { cn } from "cn";
 import { usePlayer } from "@/hooks/use-player";
 import { loadPlaylist, type Song } from "@/lib/playlist";
 
@@ -12,6 +14,7 @@ export default function App() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [error, setError] = useState<string | null>(null);
   const player = usePlayer(songs);
+  const song = player.song;
 
   useEffect(() => {
     loadPlaylist()
@@ -23,6 +26,18 @@ export default function App() {
     <MotionConfig reducedMotion="user">
       <div className="relative isolate flex h-dvh flex-col overflow-hidden">
         <Backdrop />
+        <AnimatePresence>
+          {song?.kind === "blank" ? (
+            <motion.div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 -z-10 bg-black"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.6 }}
+            />
+          ) : null}
+        </AnimatePresence>
 
         <header className="flex shrink-0 items-center justify-between gap-6 px-6 pt-3 pb-2">
           <div className="flex min-w-0 items-center gap-5">
@@ -36,16 +51,13 @@ export default function App() {
             </div>
             <div className="h-12 w-px shrink-0 bg-linear-to-b from-transparent via-primary/60 to-transparent" />
             <div className="whitespace-nowrap">
-              <p className="text-xs tracking-[0.4em] text-primary uppercase">2026 · Semifinals</p>
+              <p className="text-xs tracking-[0.4em] text-primary uppercase">2026 · Finals</p>
               <h1 className="font-heading text-4xl leading-none font-bold">
-                <span className="sn-title">Supernova</span> <span className="text-primary">复赛</span>
+                <span className="sn-title">Supernova</span> <span className="text-primary">决赛</span>
               </h1>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-3">
-            <RulesDialog />
-            <FullscreenButton />
-          </div>
+          <FullscreenButton />
         </header>
 
         <main className="flex min-h-0 flex-1 flex-col gap-3 px-6 pb-4">
@@ -55,8 +67,33 @@ export default function App() {
             </p>
           ) : (
             <>
-              <Stage player={player} />
-              <ControlBar player={player} total={songs.length} />
+              <div className="relative flex min-h-0 flex-1 flex-col">
+                {/* Stays mounted even when hidden: the YouTube player lives inside it. */}
+                <div className={cn("flex min-h-0 flex-1 flex-col", !player.media && "invisible")}>
+                  <Stage player={player} />
+                </div>
+                <AnimatePresence>
+                  {song && !player.media ? (
+                    <motion.div
+                      key={song.index}
+                      className="absolute inset-0"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.4 }}
+                    >
+                      {song.kind === "blank" ? (
+                        <BlankScreen song={song} />
+                      ) : song.kind === "rules" ? (
+                        <RulesShow />
+                      ) : (
+                        <LinkScreen song={song} />
+                      )}
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+              </div>
+              <ControlBar player={player} />
             </>
           )}
         </main>

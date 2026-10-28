@@ -1,21 +1,25 @@
 顺序,姓名,歌曲,link,
-1,陈允执,鱼仔,https://youtu.be/2Xgsf2nioVk,
-2,徐睿涵,勇气,https://youtu.be/UTlR6lzdsTg,
-3,卢常太,醉赤壁,https://youtu.be/kCEdvdtpCLY,
-4,丁方皓,怎么了,https://youtu.be/wpc89JqlHLM,
-5,蒋东方,100种生活,https://youtu.be/QnYYIGpU_WY,
-6,赵一涵,追光者,https://youtu.be/L6qz14eDFcA,
-7,兰嘉洋,Perfect,https://youtu.be/Wcf5KcVHg-M,
-8,郭冠华,菊花台,https://youtu.be/_AY1ukIKiuU,
-9,董城志,黄金时代,https://youtu.be/FIztaSwTYmI,
-10,Stark,这样很好,https://youtu.be/NIkSQ-0Q4_U,
-11,张一鸣,阿楚姑娘,https://youtu.be/Oatx7T1h9mA,
-12,贾子德,漠河舞厅,https://www.youtube.com/watch?v=wFMsq1HEzWA&t=36s,
-13, 程乐知,慢冷,https://youtu.be/ONPuOTAMb2A,
-14,陈吴斌,Colt.45,https://youtu.be/Dz4qYu8ldIM,
-15,小杜,空心,https://www.youtube.com/watch?v=Kzfu-5w8Vjw,
-16,王煜欣,Round 4,https://youtu.be/mG1yMKld5P8,
-17,方俊清,Part of your world,https://youtu.be/us6gm0jO_FY,
-18,苏好,偏爱,https://youtu.be/4YBb0rGuQgg,
-19,告两人组合（刘佳琪、庞子萱）,滚滚红尘,https://www.youtube.com/watch?v=BOCeIdqtHjo,
-20,何禹卉,那些你很冒险的梦,https://youtu.be/bnybchlc4ZA,
+B,乐队表演
+R,开场
+D1,舞蹈-Supernatural
+1,张一鸣,,,
+2,小杜,,,
+G1,评委表演1
+3,程乐知,,,
+4,蒋东方,,,
+G2,嘉宾表演
+5,王煜欣,,,
+6,方俊清,,,
+L1,中场抽奖,,https://ucsb-cssa-dev.github.io/Supernova/admin/lottery
+D2,舞蹈-16shot
+7,Stark,,,
+8,赵一涵,,,
+G3,评委表演2
+9,陈吴斌,,,
+10,刘佳琪 庞子萱,,,
+G4,评委表演3
+D3,舞蹈-Lemonade
+V1,观众投票,,https://ucsb-cssa-dev.github.io/Supernova/result
+L2,结尾抽奖,,https://ucsb-cssa-dev.github.io/Supernova/admin/lottery
+V2,公布结果,,https://ucsb-cssa-dev.github.io/Supernova/final-result
+C,大合唱,Beauty and a Beat,https://youtu.be/Ys7-6_t7OEQ?si=PNVkUFAEBv6FPt1o

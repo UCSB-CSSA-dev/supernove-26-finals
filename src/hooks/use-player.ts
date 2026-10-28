@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { hasBackup, type Song } from "@/lib/playlist";
+import { loadLyrics, type LyricLine } from "@/lib/lyrics";
+import { hasBackup, isMedia, normalizeCode, type Song } from "@/lib/playlist";
 import { loadYouTubeApi } from "@/lib/youtube";
 
 export type Source = "youtube" | "mp3";
 
-const INDEX_KEY = "supernova-26-semifinals-index";
+const INDEX_KEY = "supernova-26-finals-index";
+const VOLUMES_KEY = "supernova-26-finals-volumes";
+const DEFAULT_VOLUME = 80;
 const RESTART_WINDOW = 5;
 const YT_STATE = { ENDED: 0, PLAYING: 1, PAUSED: 2, BUFFERING: 3, CUED: 5 } as const;
+const NO_LYRICS: LyricLine[] = [];
 
 const YT_ERRORS: Record<number, string> = {
   2: "视频链接无效 · Invalid video link",
@@ -34,6 +38,31 @@ function savedIndex(): number {
   return Number.isFinite(value) && value >= 0 ? value : 0;
 }
 
+function volumeKey(song: Song): string {
+  return song.videoId ?? `${song.singer}·${song.title}`;
+}
+
+function savedVolumes(): Record<string, number> {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(VOLUMES_KEY) ?? "{}");
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, number>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function savedVolume(song: Song): number {
+  const value = savedVolumes()[volumeKey(song)];
+  return typeof value === "number" && value >= 0 && value <= 100 ? value : DEFAULT_VOLUME;
+}
+
+function saveVolume(song: Song, value: number | null) {
+  const volumes = savedVolumes();
+  if (value === null) delete volumes[volumeKey(song)];
+  else volumes[volumeKey(song)] = value;
+  localStorage.setItem(VOLUMES_KEY, JSON.stringify(volumes));
+}
+
 export function usePlayer(songs: Song[]) {
   const [index, setIndex] = useState(0);
   const [source, setSource] = useState<Source>("youtube");
@@ -41,10 +70,12 @@ export function usePlayer(songs: Song[]) {
   const [started, setStarted] = useState(false);
   const [ended, setEnded] = useState(false);
   const [time, setTime] = useState({ current: 0, duration: 0 });
-  const [volume, setVolumeState] = useState(80);
+  const [volume, setVolumeState] = useState(DEFAULT_VOLUME);
   const [ytReady, setYtReady] = useState(false);
   const [ytError, setYtError] = useState<string | null>(null);
   const [backups, setBackups] = useState<Record<number, boolean>>({});
+  const [lyrics, setLyrics] = useState<Record<number, LyricLine[]>>({});
+  const [showLyrics, setShowLyrics] = useState(true);
   const [audio] = useState(() => {
     const element = new Audio();
     element.preload = "auto";
@@ -59,7 +90,7 @@ export function usePlayer(songs: Song[]) {
     playing: false,
     started: false,
     ytReady: false,
-    volume: 80,
+    volume: DEFAULT_VOLUME,
     autoMp3: false,
   });
   const hasSongs = songs.length > 0;
@@ -86,6 +117,19 @@ export function usePlayer(songs: Song[]) {
     else player.stopVideo();
   }, []);
 
+  const applyVolume = useCallback(
+    (value: number) => {
+      state.current.volume = value;
+      setVolumeState(value);
+      audio.volume = value / 100;
+      if (yt.current && state.current.ytReady) {
+        yt.current.setVolume(value);
+        if (value > 0) yt.current.unMute();
+      }
+    },
+    [audio],
+  );
+
   const prepare = useCallback(
     (target: number) => {
       const song = songs[target];
@@ -99,14 +143,16 @@ export function usePlayer(songs: Song[]) {
         state.current.source = "youtube";
         setSource("youtube");
       }
-      setYtError(song.videoId ? null : "该曲目没有 YouTube 链接 · No YouTube link");
+      setYtError(song.videoId || !isMedia(song) ? null : "该曲目没有 YouTube 链接 · No YouTube link");
       setTime({ current: song.start, duration: 0 });
+      applyVolume(savedVolume(song));
 
       audio.pause();
-      audio.src = song.start > 0 ? `${song.backupUrl}#t=${song.start}` : song.backupUrl;
+      if (isMedia(song)) audio.src = song.start > 0 ? `${song.backupUrl}#t=${song.start}` : song.backupUrl;
+      else audio.removeAttribute("src");
       cueYouTube(song);
     },
-    [audio, cueYouTube, songs, update],
+    [applyVolume, audio, cueYouTube, songs, update],
   );
 
   useEffect(() => {
@@ -188,15 +234,26 @@ export function usePlayer(songs: Song[]) {
   const song = songs[index];
 
   useEffect(() => {
-    if (!song || backups[song.order] !== undefined) return;
+    if (!song || !isMedia(song) || backups[song.index] !== undefined) return;
     let cancelled = false;
     void hasBackup(song).then((available) => {
-      if (!cancelled) setBackups((current) => ({ ...current, [song.order]: available }));
+      if (!cancelled) setBackups((current) => ({ ...current, [song.index]: available }));
     });
     return () => {
       cancelled = true;
     };
   }, [song, backups]);
+
+  useEffect(() => {
+    if (!song || !isMedia(song) || lyrics[song.index] !== undefined) return;
+    let cancelled = false;
+    void loadLyrics(song).then((lines) => {
+      if (!cancelled) setLyrics((current) => ({ ...current, [song.index]: lines }));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [song, lyrics]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -225,7 +282,7 @@ export function usePlayer(songs: Song[]) {
 
   const toggle = useCallback(() => {
     const current = songs[state.current.index];
-    if (!current) return;
+    if (!current || !isMedia(current)) return;
     if (state.current.source === "mp3") {
       if (!audio.paused) return audio.pause();
       if (audio.ended) audio.currentTime = current.start;
@@ -253,8 +310,8 @@ export function usePlayer(songs: Song[]) {
   }, [prepare, songs.length]);
 
   const jump = useCallback(
-    (order: number) => {
-      const target = songs.findIndex((item) => item.order === order);
+    (code: string) => {
+      const target = songs.findIndex((item) => normalizeCode(item.code) === normalizeCode(code));
       if (target < 0) return false;
       prepare(target);
       return true;
@@ -264,20 +321,22 @@ export function usePlayer(songs: Song[]) {
 
   const setVolume = useCallback(
     (value: number) => {
-      state.current.volume = value;
-      setVolumeState(value);
-      audio.volume = value / 100;
-      if (yt.current && state.current.ytReady) {
-        yt.current.setVolume(value);
-        if (value > 0) yt.current.unMute();
-      }
+      const current = songs[state.current.index];
+      if (current) saveVolume(current, value);
+      applyVolume(value);
     },
-    [audio],
+    [applyVolume, songs],
   );
+
+  const resetVolume = useCallback(() => {
+    const current = songs[state.current.index];
+    if (current) saveVolume(current, null);
+    applyVolume(DEFAULT_VOLUME);
+  }, [applyVolume, songs]);
 
   const switchSource = useCallback((target: Source, onlyThisSong: boolean) => {
     const current = songs[state.current.index];
-    if (!current || state.current.source === target) return;
+    if (!current || !isMedia(current) || state.current.source === target) return;
     const at = position();
     const resume = state.current.playing;
     state.current.source = target;
@@ -321,7 +380,13 @@ export function usePlayer(songs: Song[]) {
     volume,
     ytReady,
     ytError,
-    backupAvailable: song ? backups[song.order] : undefined,
+    media: song ? isMedia(song) : false,
+    total: songs.length,
+    backupAvailable: song ? backups[song.index] : undefined,
+    lyrics: (song && lyrics[song.index]) || NO_LYRICS,
+    showLyrics,
+    toggleLyrics: () => setShowLyrics((shown) => !shown),
+    position,
     canBack: Boolean(song),
     canNext: index < songs.length - 1,
     toggle,
@@ -329,6 +394,8 @@ export function usePlayer(songs: Song[]) {
     next,
     jump,
     setVolume,
+    resetVolume,
+    volumeIsDefault: volume === DEFAULT_VOLUME,
     toggleBackup,
     backupThisSongOnly,
   };

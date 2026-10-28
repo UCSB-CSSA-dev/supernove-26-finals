@@ -1,47 +1,98 @@
 import { useState, type KeyboardEvent } from "react";
 import { motion } from "motion/react";
-import { HardDriveDownload, Pause, Play, SkipBack, SkipForward, Volume1, Volume2, VolumeX, MonitorPlay } from "lucide-react";
+import { Captions, CaptionsOff, HardDriveDownload, Pause, Play, RotateCcw, SkipBack, SkipForward, Volume1, Volume2, VolumeX, MonitorPlay } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import type { Player } from "@/hooks/use-player";
-import { formatTime } from "@/lib/playlist";
+import { KIND_NAMES, formatTime } from "@/lib/playlist";
 import { cn } from "cn";
 
-export function ControlBar({ player, total }: { player: Player; total: number }) {
-  const { song, playing, time, volume, source, backupAvailable } = player;
-  const [jumpValue, setJumpValue] = useState("");
-  const [jumpInvalid, setJumpInvalid] = useState(0);
+function JumpInput({ jump }: { jump: Player["jump"] }) {
+  const [value, setValue] = useState("");
+  const [invalid, setInvalid] = useState(0);
+
+  function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter") return;
+    if (value && jump(value)) {
+      setValue("");
+      event.currentTarget.blur();
+    } else {
+      setInvalid((count) => count + 1);
+    }
+  }
+
+  return (
+    <motion.div key={invalid} animate={invalid ? { x: [0, -6, 6, -4, 4, 0] } : undefined} transition={{ duration: 0.35 }}>
+      <Input
+        value={value}
+        onChange={(event) => setValue(event.target.value.replace(/[^0-9a-z]/gi, "").toUpperCase())}
+        onKeyDown={onKeyDown}
+        placeholder="#"
+        title="输入编号（如 3、D1、G2）后按回车跳转 · Type a code like 3, D1 or G2 and press Enter"
+        aria-label="跳转到第几首 Jump to song"
+        className="h-8 w-14 shrink-0 border-white/10 bg-white/5 text-center font-mono text-sm text-foreground/80 placeholder:text-muted-foreground/50"
+      />
+    </motion.div>
+  );
+}
+
+export function ControlBar({ player }: { player: Player }) {
+  const { song, playing, time, volume, source, backupAvailable, total } = player;
   const progress = time.duration > 0 ? Math.min(100, (time.current / time.duration) * 100) : 0;
   const mp3 = source === "mp3";
   const VolumeIcon = volume === 0 ? VolumeX : volume < 50 ? Volume1 : Volume2;
+  const kindName = song ? KIND_NAMES[song.kind] : null;
 
-  function onJumpKey(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key !== "Enter") return;
-    const order = Number.parseInt(jumpValue, 10);
-    if (Number.isFinite(order) && player.jump(order)) {
-      setJumpValue("");
-      event.currentTarget.blur();
-    } else {
-      setJumpInvalid((count) => count + 1);
-    }
+  if (song && !player.media) {
+    return (
+      <section className="mx-auto flex shrink-0 items-center gap-3 opacity-30 transition-opacity focus-within:opacity-100 hover:opacity-100">
+        <Button variant="secondary" size="icon-lg" className="rounded-full" onClick={player.back} title="上一项 · Back">
+          <SkipBack />
+        </Button>
+        <span className="font-mono text-sm text-muted-foreground tabular-nums">
+          {song.label} · {song.index + 1}/{total}
+        </span>
+        <Button
+          variant="secondary"
+          size="icon-lg"
+          className="rounded-full"
+          onClick={player.next}
+          disabled={!player.canNext}
+          title="下一项 · Next"
+        >
+          <SkipForward />
+        </Button>
+        <JumpInput jump={player.jump} />
+      </section>
+    );
   }
 
   return (
     <section className="mx-auto w-full max-w-6xl shrink-0">
       <div className="mb-2 flex items-baseline gap-4 px-2">
-        <span className="font-heading text-2xl font-bold text-primary tabular-nums">
-          #{song ? String(song.order).padStart(2, "0") : "--"}
-          <span className="text-base font-medium text-muted-foreground">/{total}</span>
+        <span className="font-heading text-2xl font-bold whitespace-nowrap text-primary tabular-nums">
+          {song ? (song.kind === "song" ? `#${song.label}` : song.label) : "--"}
+          <span className="ml-1.5 text-base font-medium text-muted-foreground">
+            {song ? song.index + 1 : "-"}/{total}
+          </span>
         </span>
         <motion.div
-          key={song?.order}
+          key={song?.index}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           className="flex min-w-0 items-baseline gap-4"
         >
-          <h2 className="truncate font-heading text-2xl font-semibold">《{song?.title ?? "—"}》</h2>
-          <p className="truncate text-lg text-foreground/75">歌手 · {song?.singer ?? "—"}</p>
+          <h2 className="truncate font-heading text-2xl font-semibold">
+            {song?.title ? `《${song.title}》` : (song?.singer ?? "—")}
+          </h2>
+          <p className="truncate text-lg text-foreground/75">
+            {kindName
+              ? song?.title && song.singer !== kindName.zh
+                ? `${kindName.zh} · ${song.singer}`
+                : `${kindName.zh} · ${kindName.en}`
+              : null}
+          </p>
         </motion.div>
         {mp3 ? (
           <span className="ml-auto shrink-0 rounded-full border border-amber-300/40 bg-amber-300/10 px-3 py-0.5 text-xs tracking-[0.2em] text-amber-200 uppercase">
@@ -89,7 +140,7 @@ export function ControlBar({ player, total }: { player: Player; total: number })
   
           <div className="flex-1" />
   
-          <div className="flex w-36 items-center gap-2">
+          <div className="flex w-44 items-center gap-2">
             <VolumeIcon className="size-4 shrink-0 text-muted-foreground" />
             <Slider
               value={[volume]}
@@ -98,25 +149,38 @@ export function ControlBar({ player, total }: { player: Player; total: number })
               onValueChange={(value) => player.setVolume(Array.isArray(value) ? value[0] : value)}
               aria-label="音量 Volume"
             />
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="shrink-0 rounded-full text-muted-foreground"
+              onClick={player.resetVolume}
+              disabled={player.volumeIsDefault}
+              title="重置本曲音量 · Reset this song's volume"
+              aria-label="重置本曲音量 · Reset this song's volume"
+            >
+              <RotateCcw />
+            </Button>
           </div>
   
-          <motion.div
-            key={jumpInvalid}
-            animate={jumpInvalid ? { x: [0, -6, 6, -4, 4, 0] } : undefined}
-            transition={{ duration: 0.35 }}
-          >
-            <Input
-              value={jumpValue}
-              onChange={(event) => setJumpValue(event.target.value.replace(/\D/g, ""))}
-              onKeyDown={onJumpKey}
-              inputMode="numeric"
-              placeholder="#"
-              title={`输入 1–${total} 后按回车跳转 · Type a number and press Enter`}
-              aria-label="跳转到第几首 Jump to song"
-              className="h-8 w-14 shrink-0 border-white/10 bg-white/5 text-center font-mono text-sm text-foreground/80 placeholder:text-muted-foreground/50"
-            />
-          </motion.div>
-  
+          <JumpInput jump={player.jump} />
+
+          {player.lyrics.length > 0 ? (
+            <Button
+              variant="outline"
+              size="icon-lg"
+              onClick={player.toggleLyrics}
+              aria-pressed={player.showLyrics}
+              title={player.showLyrics ? "隐藏歌词 · Hide lyrics" : "显示歌词 · Show lyrics"}
+              aria-label="歌词 · Lyrics"
+              className={cn(
+                "rounded-full",
+                player.showLyrics && "border-primary/50 bg-primary/15 text-primary hover:bg-primary/25 dark:bg-primary/15",
+              )}
+            >
+              {player.showLyrics ? <Captions /> : <CaptionsOff />}
+            </Button>
+          ) : null}
+
           <Button
             variant="outline"
             size="icon-lg"
