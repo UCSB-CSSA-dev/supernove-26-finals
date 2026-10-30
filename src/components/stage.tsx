@@ -1,15 +1,15 @@
 import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { AlertTriangle, Disc3, ExternalLink, HardDriveDownload, Music2 } from "lucide-react";
+import { AlertTriangle, Disc3, Music2 } from "lucide-react";
 import { LyricsOverlay } from "@/components/lyrics-overlay";
-import { Button } from "@/components/ui/button";
 import type { Player } from "@/hooks/use-player";
 import { KIND_NAMES, thumbnail, type Song } from "@/lib/playlist";
 import { cn } from "cn";
 
 export function Stage({ player }: { player: Player }) {
-  const { song, source, started, ended, ytError, ytHost, playing, backupAvailable, lyrics, showLyrics } = player;
+  const { song, source, started, ended, ytError, ytHost, videoHost, playing, backupAvailable, lyrics, showLyrics } = player;
   const mp3 = source === "mp3";
+  const localVideo = source === "video";
 
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center" style={{ containerType: "size" }}>
@@ -20,7 +20,14 @@ export function Stage({ player }: { player: Player }) {
         {/* pointer-events instead of a covering div: YouTube pauses embeds it detects as obscured. */}
         <div
           ref={ytHost}
-          className={cn("absolute inset-0 [&_iframe]:pointer-events-none [&_iframe]:size-full", mp3 && "invisible")}
+          className={cn("absolute inset-0 [&_iframe]:pointer-events-none [&_iframe]:size-full", (mp3 || localVideo) && "invisible")}
+        />
+        <video
+          ref={videoHost}
+          aria-label={song ? `${song.title || song.singer} performance video` : "Performance video"}
+          playsInline
+          preload="metadata"
+          className={cn("absolute inset-0 size-full object-contain", !localVideo && "invisible")}
         />
 
         <AnimatePresence initial={false}>
@@ -35,7 +42,7 @@ export function Stage({ player }: { player: Player }) {
                   <AlertTriangle className="size-5" />
                   <span>{ytError}</span>
                 </div>
-                <div className="mt-5 flex gap-3">
+                {/* <div className="mt-5 flex gap-3">
                   <Button
                     variant="outline"
                     className="h-10 rounded-full px-4"
@@ -51,10 +58,10 @@ export function Stage({ player }: { player: Player }) {
                   >
                     <HardDriveDownload /> 使用备用 MP3 · Use backup MP3
                   </Button>
-                </div>
-                {backupAvailable === false ? (
+                </div> */}
+                {/* {backupAvailable === false ? (
                   <p className="mt-3 text-sm text-muted-foreground">该曲目没有备用 MP3 · No backup file for this song</p>
-                ) : null}
+                ) : null} */}
               </Poster>
             </Overlay>
           ) : song && ended ? (

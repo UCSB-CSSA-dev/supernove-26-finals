@@ -11,6 +11,7 @@ export type Song = {
   title: string;
   link: string;
   videoId: string | null;
+  videoUrl: string | null;
   start: number;
   backupUrl: string;
   /** Optional timed lyrics, public/lyrics/<label>.srt */
@@ -79,7 +80,11 @@ export function parsePlaylist(text: string): Song[] {
     if (!rawSinger) return [];
     const label = contestant ? code.padStart(2, "0") : code;
     const link = rawLink ?? "";
-    const { videoId, start } = MEDIA_KINDS.has(kind) ? parseYouTube(link) : { videoId: null, start: 0 };
+    const videoUrl = MEDIA_KINDS.has(kind) && /\.(?:mp4|webm|ogg)(?:[?#].*)?$/i.test(link)
+      ? (/^https?:\/\//i.test(link) ? link : `${BASE}${link.replace(/^\/+/, "")}`)
+      : null;
+    const { videoId, start } =
+      MEDIA_KINDS.has(kind) && !videoUrl ? parseYouTube(link) : { videoId: null, start: 0 };
     const fileName = `${label}_${rawSinger}${rawTitle ? `_${rawTitle}` : ""}.mp3`;
     return [
       {
@@ -90,6 +95,7 @@ export function parsePlaylist(text: string): Song[] {
         title: rawTitle || (contestant ? UNTITLED : ""),
         link,
         videoId,
+        videoUrl,
         start,
         backupUrl: `${BASE}backup-audio/${encodeURIComponent(fileName)}`,
         lyricsUrl: `${BASE}lyrics/${encodeURIComponent(label)}.srt`,

@@ -24,8 +24,8 @@ const JUDGES = 3;
 const AUTOPLAY_SECONDS = 7;
 
 const SCORE_SPLIT = [
-  { zh: "评委评分", en: "Judges' score", short: "评委 Judges", weight: 75, color: GOLD },
-  { zh: "观众投票", en: "Audience vote", short: "观众 Audience", weight: 25, color: PINK },
+  { zh: "评委评分", en: "Judges' score", short: "评委 Judges", weight: 70, color: GOLD },
+  { zh: "观众投票", en: "Audience vote", short: "观众 Audience", weight: 30, color: PINK },
 ];
 
 const CRITERIA = [

@@ -3,7 +3,7 @@ import { loadLyrics, type LyricLine } from "@/lib/lyrics";
 import { hasBackup, isMedia, normalizeCode, type Song } from "@/lib/playlist";
 import { loadYouTubeApi } from "@/lib/youtube";
 
-export type Source = "youtube" | "mp3";
+export type Source = "youtube" | "mp3" | "video";
 
 const INDEX_KEY = "supernova-26-finals-index";
 const VOLUMES_KEY = "supernova-26-finals-volumes";
@@ -84,6 +84,7 @@ export function usePlayer(songs: Song[]) {
 
   const ytHost = useRef<HTMLDivElement>(null);
   const yt = useRef<YT.Player | null>(null);
+  const videoHost = useRef<HTMLVideoElement>(null);
   const state = useRef({
     index: 0,
     source: "youtube" as Source,
@@ -126,6 +127,7 @@ export function usePlayer(songs: Song[]) {
         yt.current.setVolume(value);
         if (value > 0) yt.current.unMute();
       }
+      if (videoHost.current) videoHost.current.volume = value / 100;
     },
     [audio],
   );
@@ -138,18 +140,28 @@ export function usePlayer(songs: Song[]) {
       setIndex(target);
       localStorage.setItem(INDEX_KEY, String(target));
       update({ playing: false, started: false, ended: false });
-      if (state.current.autoMp3) {
-        state.current.autoMp3 = false;
-        state.current.source = "youtube";
-        setSource("youtube");
-      }
-      setYtError(song.videoId || !isMedia(song) ? null : "该曲目没有 YouTube 链接 · No YouTube link");
+      const nextSource = state.current.autoMp3 ? "youtube" : song.videoUrl ? "video" : "youtube";
+      state.current.autoMp3 = false;
+      state.current.source = nextSource;
+      setSource(nextSource);
+      setYtError(song.videoUrl || song.videoId || !isMedia(song) ? null : "该曲目没有 YouTube 链接 · No YouTube link");
       setTime({ current: song.start, duration: 0 });
       applyVolume(savedVolume(song));
 
       audio.pause();
       if (isMedia(song)) audio.src = song.start > 0 ? `${song.backupUrl}#t=${song.start}` : song.backupUrl;
       else audio.removeAttribute("src");
+      const video = videoHost.current;
+      video?.pause();
+      if (video) {
+        if (song.videoUrl) {
+          video.src = song.videoUrl;
+          video.load();
+        } else {
+          video.removeAttribute("src");
+          video.load();
+        }
+      }
       cueYouTube(song);
     },
     [applyVolume, audio, cueYouTube, songs, update],
@@ -195,7 +207,11 @@ export function usePlayer(songs: Song[]) {
               else if (event.data === YT_STATE.PAUSED || event.data === YT_STATE.CUED) update({ playing: false });
               else if (event.data === YT_STATE.ENDED) update({ playing: false, ended: true });
             },
-            onError: (event) => setYtError(YT_ERRORS[event.data] ?? `YouTube error ${event.data}`),
+            onError: (event) => {
+              if (state.current.source === "youtube") {
+                setYtError(YT_ERRORS[event.data] ?? `YouTube error ${event.data}`);
+              }
+            },
           },
         });
       })
@@ -231,6 +247,37 @@ export function usePlayer(songs: Song[]) {
     };
   }, [audio, update]);
 
+  useEffect(() => {
+    const video = videoHost.current;
+    if (!video) return;
+    const isActive = () => state.current.source === "video";
+    const onPlay = () => isActive() && update({ playing: true, started: true, ended: false });
+    const onPause = () => isActive() && update({ playing: false });
+    const onEnded = () => isActive() && update({ playing: false, ended: true });
+    const onLoadedMetadata = () => {
+      const current = songs[state.current.index];
+      if (isActive() && current?.videoUrl && current.start > 0) {
+        video.currentTime = Math.min(current.start, video.duration || current.start);
+      }
+    };
+    const onError = () => {
+      if (isActive()) setYtError("无法播放本地视频 · Could not play local video");
+    };
+    video.addEventListener("play", onPlay);
+    video.addEventListener("pause", onPause);
+    video.addEventListener("ended", onEnded);
+    video.addEventListener("loadedmetadata", onLoadedMetadata);
+    video.addEventListener("error", onError);
+    return () => {
+      video.removeEventListener("play", onPlay);
+      video.removeEventListener("pause", onPause);
+      video.removeEventListener("ended", onEnded);
+      video.removeEventListener("loadedmetadata", onLoadedMetadata);
+      video.removeEventListener("error", onError);
+      video.pause();
+    };
+  }, [songs, update]);
+
   const song = songs[index];
 
   useEffect(() => {
@@ -263,6 +310,16 @@ export function usePlayer(songs: Song[]) {
         setTime({ current: audio.currentTime || 0, duration: Number.isFinite(audio.duration) ? audio.duration : 0 });
         return;
       }
+      if (state.current.source === "video") {
+        const video = videoHost.current;
+        if (video) {
+          setTime({
+            current: video.currentTime || 0,
+            duration: Number.isFinite(video.duration) ? video.duration : 0,
+          });
+        }
+        return;
+      }
       const player = yt.current;
       if (!player || !state.current.ytReady || typeof player.getCurrentTime !== "function") return;
       const position = player.getCurrentTime() || 0;
@@ -276,6 +333,7 @@ export function usePlayer(songs: Song[]) {
 
   const position = useCallback(() => {
     if (state.current.source === "mp3") return audio.currentTime || 0;
+    if (state.current.source === "video") return videoHost.current?.currentTime || 0;
     const player = yt.current;
     return player && state.current.ytReady ? player.getCurrentTime() || 0 : 0;
   }, [audio]);
@@ -287,6 +345,17 @@ export function usePlayer(songs: Song[]) {
       if (!audio.paused) return audio.pause();
       if (audio.ended) audio.currentTime = current.start;
       void audio.play().catch(() => update({ playing: false }));
+      return;
+    }
+    if (state.current.source === "video") {
+      const video = videoHost.current;
+      if (!video) return;
+      if (!video.paused) return video.pause();
+      if (video.ended) video.currentTime = current.start;
+      void video.play().catch(() => {
+        setYtError("无法播放本地视频 · Could not play local video");
+        update({ playing: false });
+      });
       return;
     }
     const player = yt.current;
@@ -336,7 +405,7 @@ export function usePlayer(songs: Song[]) {
 
   const switchSource = useCallback((target: Source, onlyThisSong: boolean) => {
     const current = songs[state.current.index];
-    if (!current || !isMedia(current) || state.current.source === target) return;
+    if (!current || !isMedia(current) || current.videoUrl || state.current.source === target) return;
     const at = position();
     const resume = state.current.playing;
     state.current.source = target;
@@ -370,6 +439,7 @@ export function usePlayer(songs: Song[]) {
 
   return {
     ytHost,
+    videoHost,
     song,
     index,
     source,

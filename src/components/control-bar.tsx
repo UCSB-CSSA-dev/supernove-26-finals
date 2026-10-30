@@ -1,6 +1,6 @@
 import { useState, type KeyboardEvent } from "react";
 import { motion } from "motion/react";
-import { Captions, CaptionsOff, HardDriveDownload, Pause, Play, RotateCcw, SkipBack, SkipForward, Volume1, Volume2, VolumeX, MonitorPlay } from "lucide-react";
+import { Captions, CaptionsOff, Pause, Play, RotateCcw, SkipBack, SkipForward, Volume1, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
@@ -38,7 +38,7 @@ function JumpInput({ jump }: { jump: Player["jump"] }) {
 }
 
 export function ControlBar({ player }: { player: Player }) {
-  const { song, playing, time, volume, source, backupAvailable, total } = player;
+  const { song, playing, time, volume, source, total } = player;
   const progress = time.duration > 0 ? Math.min(100, (time.current / time.duration) * 100) : 0;
   const mp3 = source === "mp3";
   const VolumeIcon = volume === 0 ? VolumeX : volume < 50 ? Volume1 : Volume2;
@@ -181,7 +181,7 @@ export function ControlBar({ player }: { player: Player }) {
             </Button>
           ) : null}
 
-          <Button
+          {/* <Button
             variant="outline"
             size="icon-lg"
             onClick={player.toggleBackup}
@@ -194,7 +194,7 @@ export function ControlBar({ player }: { player: Player }) {
             )}
           >
             {mp3 ? <MonitorPlay /> : <HardDriveDownload />}
-          </Button>
+          </Button> */}
         </div>
       </div>
     </section>

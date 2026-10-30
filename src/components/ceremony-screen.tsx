@@ -16,19 +16,21 @@ const ASPECT = 16 / 9;
 
 const COPY: Record<
   CeremonyVariant,
-  { label: { zh: string; en: string }; eyebrow: string; subtitle: string; finale: { zh: string; en: string } }
+  { label: { zh: string; en: string }; eyebrow: string; subtitle: string; finale: { zh: string; en: string }; smallText: { zh: string; en: string } }
 > = {
   opening: {
     label: { zh: "开场", en: "Opening" },
     eyebrow: "UCSB CSSA presents",
     subtitle: "2026 决赛之夜 · Grand Final",
     finale: { zh: "决赛之夜 · 正式开始", en: "Let the Grand Final begin!" },
+    smallText: {zh: "点击进入音乐世界", en: "Press to enter the world of music"},
   },
   ending: {
-    label: { zh: "闭幕", en: "Closing" },
+    label: { zh: "留念", en: "Memory" },
     eyebrow: "Thank you for tonight",
     subtitle: "2026 决赛之夜 · Grand Final",
     finale: { zh: "圆满落幕 · 明年再见", en: "That's a wrap. See you next year!" },
+    smallText: {zh: "结束今晚的音乐之旅", en: "End the journey of music tonight"},
   },
 };
 
@@ -158,7 +160,7 @@ export function CeremonyScreen({ variant }: { variant: CeremonyVariant }) {
               {copy.label.zh} · {copy.label.en}
             </h2>
             <PlayButton onClick={play} />
-            <p className="mt-8 text-sm tracking-[0.3em] text-foreground/50 uppercase">点击播放 · Press play</p>
+            <p className="mt-8 text-sm tracking-[0.3em] text-foreground/50 uppercase">{copy.smallText.zh} <br/> {copy.smallText.en}</p>
           </motion.div>
         ) : null}
       </AnimatePresence>
